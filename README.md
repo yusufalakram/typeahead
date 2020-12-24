@@ -1,3 +1,3 @@
 # Typeahead
 
-This project implements an autocomplete text search which leverages the Algolia Places API.
+This project implements a searchbox with autocomplete, leveraging the Algolia Places API for search suggestions.
