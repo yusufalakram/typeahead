@@ -1,83 +1,63 @@
-/* eslint-disable no-use-before-define */
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import TextField from '@material-ui/core/TextField'
 import Autocomplete from '@material-ui/lab/Autocomplete'
-import Button from '@material-ui/core/Button'
+import GoogleMapReact from 'google-map-react'
+import { config } from './config'
+import { Hit, Coordinates } from './types'
+import { fetchSuggestions } from './rest'
+import { CountryInfoPanel } from './CountryInfoPanel'
 
-const fetchSuggestions = (query, setHits) => {
-  return fetch('https://places-dsn.algolia.net/1/places/query', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      accept: 'application/json',
-    },
-    body: JSON.stringify({
-      query: query,
-      type: 'country',
-      language: 'en',
-    }),
-  })
-    .then((response) => response.json())
-    .then((json) => (json === undefined ? [] : json.hits))
-    .then((hits) => setHits(hits))
+const defaultMapCenter: Coordinates = {
+  lat: 0.0,
+  lng: 0.0,
 }
 
-const formatNumber = (x: string): string => {
-  if (x === undefined) return ''
-  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+const defaultMapProps = {
+  center: defaultMapCenter,
+  zoom: 0,
 }
 
 export default function App() {
   const [FieldInput, setFieldInput] = useState('')
-  const [Hits, setHits] = useState()
-  const [Country, setCountry] = useState()
-  const [Population, setPopulation] = useState()
+  const [Hits, setHits] = useState<Hit[]>([])
+  const [Country, setCountry] = useState('')
+  const [Population, setPopulation] = useState(0)
+  const [MapCenter, setMapCenter] = useState<Coordinates>(defaultMapCenter)
 
-  const fieldInputChanged = (event, values) => {
-    setFieldInput(values)
-    fetchSuggestions(values, setHits)
+  useEffect(() => {
+    fetchSuggestions(FieldInput, setHits)
+  }, [FieldInput])
+
+  const clearClicked = () => {
+    setCountry('')
+    setPopulation(0)
+    setFieldInput('')
+  }
+
+  const onCountrySelection = (event, values) => {
+    const hit = Hits.filter((hit) => hit.locale_names[0] === values)[0]
+    if (hit !== undefined) {
+      setCountry(hit.locale_names[0])
+      setPopulation(hit.population)
+      setMapCenter(hit._geoloc)
+    }
   }
 
   return (
     <React.Fragment>
-      <h1>{Country}</h1>
-      <h2>
-        {Population === undefined
-          ? ''
-          : 'Population: ' + formatNumber(Population)}
-      </h2>
-      {Country !== '' && Country !== undefined ? (
-        <Button
-          variant="contained"
-          onClick={() => {
-            setCountry(undefined)
-            setPopulation(undefined)
-            setFieldInput('')
-          }}
-        >
-          Clear
-        </Button>
-      ) : (
-        ''
-      )}
+      <CountryInfoPanel
+        Country={Country}
+        Population={Population}
+        clearClicked={clearClicked}
+      />
       <Autocomplete
         freeSolo
-        options={
-          Hits === undefined || Hits.length === 0
-            ? []
-            : Hits.map((hit) => hit.locale_names[0]).filter(
-                (value, index, self) => self.indexOf(value) === index,
-              )
-        }
+        options={Hits.map((hit) => hit.locale_names[0]).filter(
+          (value, index, self) => self.indexOf(value) === index,
+        )}
         inputValue={FieldInput}
-        onInputChange={fieldInputChanged}
-        onChange={(event, values) => {
-          const hit = Hits.filter((hit) => hit.locale_names[0] === values)[0]
-          if (hit !== undefined) {
-            setCountry(hit.locale_names[0])
-            setPopulation(hit.population)
-          }
-        }}
+        onInputChange={(event, values) => setFieldInput(values)}
+        onChange={onCountrySelection}
         renderInput={(params) => (
           <TextField
             {...params}
@@ -87,6 +67,15 @@ export default function App() {
           />
         )}
       />
+      <div style={{ height: '50vh', width: '100%' }}>
+        <GoogleMapReact
+          bootstrapURLKeys={{ key: config.maps_api_key }}
+          defaultCenter={defaultMapProps.center}
+          defaultZoom={defaultMapProps.zoom}
+          center={MapCenter}
+          zoom={0}
+        />
+      </div>
     </React.Fragment>
   )
 }
