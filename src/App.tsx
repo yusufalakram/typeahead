@@ -6,15 +6,11 @@ import { config } from './config'
 import { Hit, Coordinates } from './types'
 import { fetchSuggestions } from './rest'
 import { CountryInfoPanel } from './CountryInfoPanel'
+import { ThemeContext, themes } from './theme-context'
 
 const defaultMapCenter: Coordinates = {
   lat: 0.0,
   lng: 0.0,
-}
-
-const defaultMapProps = {
-  center: defaultMapCenter,
-  zoom: 0,
 }
 
 export default function App() {
@@ -30,8 +26,8 @@ export default function App() {
 
   const clearClicked = () => {
     setCountry('')
-    setPopulation(0)
     setFieldInput('')
+    setPopulation(0)
   }
 
   const onCountrySelection = (event, values) => {
@@ -40,11 +36,13 @@ export default function App() {
       setCountry(hit.locale_names[0])
       setPopulation(hit.population)
       setMapCenter(hit._geoloc)
+    } else {
+      console.log('Failed to find hit for ' + values)
     }
   }
 
   return (
-    <React.Fragment>
+    <ThemeContext.Provider value={themes.dark}>
       <CountryInfoPanel
         Country={Country}
         Population={Population}
@@ -70,12 +68,12 @@ export default function App() {
       <div style={{ height: '50vh', width: '100%' }}>
         <GoogleMapReact
           bootstrapURLKeys={{ key: config.maps_api_key }}
-          defaultCenter={defaultMapProps.center}
-          defaultZoom={defaultMapProps.zoom}
+          defaultCenter={defaultMapCenter}
+          defaultZoom={0}
           center={MapCenter}
           zoom={0}
         />
       </div>
-    </React.Fragment>
+    </ThemeContext.Provider>
   )
 }
